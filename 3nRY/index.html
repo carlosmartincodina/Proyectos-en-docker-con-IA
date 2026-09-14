@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tres en Raya Online</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f2f5; }
+        .setup, .game-container { display: flex; flex-direction: column; align-items: center; }
+        .hidden { display: none !important; }
+        .board { display: grid; grid-template-columns: repeat(3, 100px); grid-gap: 5px; margin-top: 20px; }
+        .cell { width: 100px; height: 100px; background: white; border: 2px solid #333; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: bold; cursor: pointer; }
+        .cell:hover { background: #ddd; }
+        #status { margin-top: 20px; font-size: 1.5rem; font-weight: bold; }
+        button, input { margin: 5px; padding: 10px 20px; font-size: 1rem; cursor: pointer; }
+        input { cursor: text; }
+    </style>
+</head>
+<body>
+    <h1>Tres en Raya Multijugador</h1>
+    
+    <div id="setup" class="setup">
+        <button id="create-room">Crear Nueva Partida</button>
+        <div style="margin-top: 15px;">
+            <input type="text" id="room-id-input" placeholder="Código de partida">
+            <button id="join-room">Unirse a Partida</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="game-container hidden">
+        <h3 id="room-display">Partida: -</h3>
+        <div class="board" id="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+        <div id="status">Esperando al otro jugador...</div>
+        <button id="reset-btn" class="hidden">Reiniciar Partida</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let mySymbol = null;
+        let isMyTurn = false;
+        let currentRoom = null;
+
+        const setupDiv = document.getElementById('setup');
+        const gameContainer = document.getElementById('game-container');
+        const roomDisplay = document.getElementById('room-display');
+        const statusDisplay = document.getElementById('status');
+        const cells = document.querySelectorAll('.cell');
+        const resetBtn = document.getElementById('reset-btn');
+
+        document.getElementById('create-room').addEventListener('click', () => {
+            const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
+            socket.emit('joinRoom', roomId);
+        });
+
+        document.getElementById('join-room').addEventListener('click', () => {
+            const roomId = document.getElementById('room-id-input').value.trim().toUpperCase();
+            if (roomId) socket.emit('joinRoom', roomId);
+        });
+
+        resetBtn.addEventListener('click', () => {
+            socket.emit('requestReset', currentRoom);
+        });
+
+        cells.forEach(cell => cell.addEventListener('click', (e) => {
+            if (!isMyTurn || e.target.innerText !== "") return;
+            const index = e.target.getAttribute('data-index');
+            socket.emit('makeMove', { room: currentRoom, index: parseInt(index), symbol: mySymbol });
+        }));
+
+        socket.on('roomJoined', ({ room, symbol }) => {
+            currentRoom = room;
+            mySymbol = symbol;
+            setupDiv.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            roomDisplay.innerText = `Código de Sala: ${room} | Tu símbolo: ${symbol}`;
+            if (symbol === 'X') {
+                statusDisplay.innerText = "Esperando que se una tu compañero...";
+            }
+        });
+
+        socket.on('roomFull', () => { alert('La sala ya está llena.'); });
+
+        socket.on('gameStart', () => {
+            isMyTurn = (mySymbol === 'X');
+            statusDisplay.innerText = isMyTurn ? "¡Es tu turno!" : "Turno de tu compañero...";
+        });
+
+        socket.on('updateBoard', ({ board, nextTurn }) => {
+            cells.forEach((cell, i) => cell.innerText = board[i]);
+            isMyTurn = (nextTurn === mySymbol);
+            statusDisplay.innerText = isMyTurn ? "¡Es tu turno!" : "Turno de tu compañero...";
+        });
+
+        socket.on('gameOver', ({ winner, board }) => {
+            cells.forEach((cell, i) => cell.innerText = board[i]);
+            isMyTurn = false;
+            if (winner === 'Tie') {
+                statusDisplay.innerText = "¡Empate!";
+            } else {
+                statusDisplay.innerText = winner === mySymbol ? "¡Has ganado! 🎉" : "Has perdido... 😢";
+            }
+            resetBtn.classList.remove('hidden');
+        });
+
+        socket.on('resetGame', () => {
+            cells.forEach(cell => cell.innerText = "");
+            isMyTurn = (mySymbol === 'X');
+            statusDisplay.innerText = isMyTurn ? "¡Es tu turno!" : "Turno de tu compañero...";
+            resetBtn.classList.add('hidden');
+        });
+
+        socket.on('playerDisconnected', () => {
+            statusDisplay.innerText = "Tu compañero se ha desconectado.";
+            isMyTurn = false;
+            resetBtn.classList.add('hidden');
+        });
+    </script>
+</body>
+</html>
+

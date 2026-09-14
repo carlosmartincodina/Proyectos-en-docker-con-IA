@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ahorcado Docker</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
+        body { background-color: #1e1e24; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .container { background: #2a2a35; padding: 30px; border-radius: 8px; width: 100%; max-width: 500px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .hidden { display: none !important; }
+        input, button { padding: 12px; font-size: 1.1rem; border-radius: 4px; border: none; margin: 10px 0; width: 100%; }
+        input { background: #3b3b4f; color: white; text-align: center; }
+        button { background: #ff4757; color: white; font-weight: bold; cursor: pointer; }
+        button:hover { background: #e84118; }
+        .gallows { font-family: monospace; white-space: pre; background: #111; padding: 15px; border-radius: 5px; margin: 15px 0; font-size: 1.2rem; color: #00ff00; text-align: left; display: inline-block; }
+        .word-display { font-size: 2.2rem; letter-spacing: 8px; margin: 20px 0; color: #fbc531; font-weight: bold; }
+        #status { font-size: 1.2rem; margin: 15px 0; min-height: 25px; color: #4cd137; }
+        .keyboard { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 15px; }
+        .key { padding: 10px 0; background: #3b3b4f; border: none; color: white; font-size: 1rem; cursor: pointer; border-radius: 4px; margin: 0; width: 100%; }
+        .key:disabled { background: #1e1e24; color: #555; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Ahorcado Docker</h1>
+        
+        <!-- Pantalla de Roles -->
+        <div id="setup-screen">
+            <p id="setup-text">Conectando al servidor...</p>
+            <div id="word-creator" class="hidden">
+                <p style="margin-bottom: 10px;">¡Eres el encargado de elegir la palabra!</p>
+                <input type="password" id="secret-word-input" placeholder="Escribe la palabra secreta..." autocomplete="off">
+                <button id="send-word-btn">Fijar Palabra</button>
+            </div>
+            <div id="word-guesser" class="hidden">
+                <p>Tu compañero está pensando la palabra...</p>
+            </div>
+        </div>
+
+        <!-- Pantalla del Juego -->
+        <div id="game-screen" class="hidden">
+            <div class="gallows" id="gallows"></div>
+            <div class="word-display" id="word-display">_ _ _ _</div>
+            <div id="status">Tu turno de adivinar</div>
+            
+            <div class="keyboard" id="keyboard">
+                <!-- Teclado generado por JS -->
+            </div>
+            <button id="restart-btn" class="hidden" style="margin-top: 20px;">Jugar otra vez</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myRole = null; // 'creator' o 'guesser'
+
+        const setupScreen = document.getElementById('setup-screen');
+        const setupText = document.getElementById('setup-text');
+        const wordCreator = document.getElementById('word-creator');
+        const wordGuesser = document.getElementById('word-guesser');
+        const gameScreen = document.getElementById('game-screen');
+        const gallows = document.getElementById('gallows');
+        const wordDisplay = document.getElementById('word-display');
+        const status = document.getElementById('status');
+        const keyboard = document.getElementById('keyboard');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // Generar teclado de la A a la Z
+        const letters = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ";
+        letters.split("").forEach(letra => {
+            const btn = document.createElement('button');
+            btn.innerText = letra;
+            btn.classList.add('key');
+            btn.addEventListener('click', () => {
+                btn.disabled = true;
+                socket.emit('guessLetter', letra);
+            });
+            keyboard.appendChild(btn);
+        });
+
+        // Enviar la palabra secreta
+        document.getElementById('send-word-btn').addEventListener('click', () => {
+            const word = document.getElementById('secret-word-input').value.trim().toUpperCase();
+            if (!word || !/^[A-ZÑ]+$/.test(word)) return alert("Escribe una sola palabra válida (sin espacios ni números)");
+            socket.emit('setWord', word);
+        });
+
+        socket.on('assignRole', (role) => {
+            myRole = role;
+            setupText.classList.add('hidden');
+            if (role === 'creator') {
+                wordCreator.classList.remove('hidden');
+                wordGuesser.classList.add('hidden');
+            } else {
+                wordGuesser.classList.remove('hidden');
+                wordCreator.classList.add('hidden');
+            }
+        });
+
+        socket.on('waitingForPlayer', () => {
+            setupText.innerText = "Esperando a que se conecte tu compañero...";
+            setupText.classList.remove('hidden');
+            wordCreator.classList.add('hidden');
+            wordGuesser.classList.add('hidden');
+        });
+
+        socket.on('gameStarted', () => {
+            setupScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            restartBtn.classList.add('hidden');
+            // Resetear teclado visual
+            document.querySelectorAll('.key').forEach(btn => btn.disabled = (myRole === 'creator'));
+        });
+
+        socket.on('gameState', (data) => {
+            wordDisplay.innerText = data.maskedWord.split("").join(" ");
+            gallows.innerText = data.gallowsVisual;
+            
+            if (myRole === 'creator') {
+                status.innerText = `Tu compañero está intentando adivinar. Errores: ${data.wrongGuesses}/6`;
+            } else {
+                status.innerText = `¡Te toca! Elige una letra. Errores: ${data.wrongGuesses}/6`;
+            }
+        });
+
+        socket.on('gameOver', (data) => {
+            wordDisplay.innerText = data.secretWord.split("").join(" ");
+            gallows.innerText = data.gallowsVisual;
+            document.querySelectorAll('.key').forEach(btn => btn.disabled = true);
+            
+            if (data.result === 'win') {
+                status.innerHTML = myRole === 'guesser' ? "¡HAS GANADO! 🎉" : "Tu compañero adivinó la palabra 🧐";
+                status.style.color = "#4cd137";
+            } else {
+                status.innerHTML = myRole === 'guesser' ? `¡AHORCADO! 💀 (Era: ${data.secretWord})` : "¡Ganaste! Tu compañero no la descubrió 😈";
+                status.style.color = "#ff4757";
+            }
+            restartBtn.classList.remove('hidden');
+        });
+
+        restartBtn.addEventListener('click', () => {
+            socket.emit('playAgain');
+        });
+
+        socket.on('playerDisconnected', () => {
+            alert("Tu compañero se ha desconectado. Reiniciando juego...");
+            window.location.reload();
+        });
+    </script>
+</body>
+</html>
+

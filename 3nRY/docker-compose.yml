@@ -1,0 +1,7 @@
+services:
+  ttt-online:
+    build: .
+    container_name: ttt_multiplayer
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
