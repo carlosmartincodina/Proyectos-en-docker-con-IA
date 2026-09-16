@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Chat App</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+<link rel="stylesheet" href="/style.css">
+<script>
+  // Tema aplicado antes de pintar para evitar parpadeo.
+  try {
+    var t = localStorage.getItem("theme");
+    if (t !== "dark" && t !== "light") {
+      t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.setAttribute("data-theme", t);
+  } catch (e) {}
+</script>
+</head>
+<body>
+
+<!-- ============================ ACCESO ============================ -->
+<div class="app" id="auth-view" hidden>
+  <main class="auth">
+    <section class="card">
+      <button class="theme-toggle theme-toggle--floating" type="button" data-theme-toggle aria-label="Cambiar tema">🌙</button>
+
+      <h1 class="brand">Chat App</h1>
+      <p class="brand-sub" id="auth-subtitle">Entra para continuar la conversación</p>
+
+      <!-- Login -->
+      <form id="login-form" class="form" autocomplete="on">
+        <label class="field">
+          <span>Usuario</span>
+          <input type="text" name="username" autocomplete="username" required minlength="3" maxlength="24" placeholder="tu_usuario">
+        </label>
+        <label class="field">
+          <span>Contraseña</span>
+          <input type="password" name="password" autocomplete="current-password" required minlength="6" placeholder="••••••••">
+        </label>
+        <p class="notice" id="login-error" role="alert" hidden></p>
+        <button class="btn btn-primary" type="submit">Iniciar sesión</button>
+        <button class="btn btn-link" type="button" id="go-register">Crear una cuenta</button>
+      </form>
+
+      <!-- Registro -->
+      <form id="register-form" class="form" hidden autocomplete="on">
+        <label class="field">
+          <span>Usuario</span>
+          <input type="text" name="username" autocomplete="username" required minlength="3" maxlength="24" placeholder="3–24 caracteres">
+        </label>
+        <label class="field">
+          <span>Contraseña</span>
+          <input type="password" name="password" autocomplete="new-password" required minlength="6" placeholder="mínimo 6 caracteres">
+        </label>
+        <div class="field">
+          <span>Avatar <em>(opcional)</em></span>
+          <div class="avatar-picker">
+            <span class="avatar avatar-lg" id="avatar-preview" aria-hidden="true">👤</span>
+            <label class="btn btn-ghost" for="avatar-input">Elegir imagen</label>
+            <input type="file" id="avatar-input" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+            <button class="btn btn-link" type="button" id="avatar-clear" hidden>Quitar</button>
+          </div>
+        </div>
+        <p class="notice" id="register-error" role="alert" hidden></p>
+        <button class="btn btn-primary" type="submit">Crear cuenta</button>
+        <button class="btn btn-link" type="button" id="go-login">Ya tengo cuenta</button>
+      </form>
+    </section>
+  </main>
+</div>
+
+<!-- ============================= CHAT ============================= -->
+<div class="app" id="chat-view" hidden>
+  <header class="header">
+    <div class="me">
+      <span class="avatar" id="me-avatar">👤</span>
+      <div class="me-text">
+        <strong id="me-name">Usuario</strong>
+        <small id="presence">Conectando…</small>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Cambiar tema">🌙</button>
+      <button class="btn btn-ghost" type="button" id="logout">Salir</button>
+    </div>
+  </header>
+
+  <main class="chat">
+    <div id="messages" tabindex="0" role="log" aria-live="polite" aria-label="Mensajes">
+      <div class="history-status" id="history-status" hidden>Cargando mensajes anteriores…</div>
+      <div id="message-list"></div>
+    </div>
+
+    <div class="scroll-controls">
+      <button type="button" id="scroll-top" class="round" aria-label="Ir al principio">↑</button>
+      <button type="button" id="scroll-bottom" class="round" aria-label="Ir al final">↓</button>
+    </div>
+  </main>
+
+  <footer class="composer">
+    <div class="attachment" id="attachment" hidden>
+      <span class="attachment-name" id="attachment-name"></span>
+      <button type="button" id="attachment-remove" class="btn btn-link">Quitar</button>
+    </div>
+    <form class="composer-row" id="composer-form">
+      <label class="round ghost" for="file-input" title="Adjuntar archivo (máx. 5 MB)">📎</label>
+      <input type="file" id="file-input" hidden>
+      <textarea id="text-input" rows="1" maxlength="4000" placeholder="Escribe un mensaje…" autocomplete="off"></textarea>
+      <button type="submit" class="round primary" id="send" aria-label="Enviar">➤</button>
+    </form>
+    <p class="notice composer-notice" id="composer-error" role="alert" hidden></p>
+  </footer>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
