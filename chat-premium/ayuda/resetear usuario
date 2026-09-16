@@ -1,0 +1,1 @@
+docker exec -it chat-app node admin.js reset user MiPasswordNueva123

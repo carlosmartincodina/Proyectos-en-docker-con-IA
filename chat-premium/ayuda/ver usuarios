@@ -1,0 +1,4 @@
+docker exec -it chat-app node -e "
+const db = require('better-sqlite3')('/app/data/chat.db');
+console.log(db.prepare('SELECT username, password_hash FROM users').all());
+"

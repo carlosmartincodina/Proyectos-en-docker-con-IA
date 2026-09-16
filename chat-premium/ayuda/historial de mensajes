@@ -1,0 +1,8 @@
+# últimos 100 mensajes de todos los usuarios
+docker exec -it chat-app node admin.js messages
+
+# mensajes de un usuario concreto (ej. juan)
+docker exec -it chat-app node admin.js messages juan
+
+# limitar cuántos mensajes ver
+docker exec -it chat-app node admin.js messages juan 20

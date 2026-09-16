@@ -1,0 +1,11 @@
+# Copiamos foto al contenedor
+docker cp mi_foto.jpg chat-app:/app/data/avatars/
+
+# Establecemos foto
+
+docker exec -it chat-app node -e "
+const db = require('better-sqlite3')('/app/data/chat.db');
+db.prepare('UPDATE users SET avatar_path = ? WHERE username = ? COLLATE NOCASE')
+  .run('mi_foto.jpg', 'usuario');
+console.log('avatar actualizado');
+"

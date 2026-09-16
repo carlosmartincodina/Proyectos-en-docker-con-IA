@@ -1,0 +1,5 @@
+docker exec -it chat-app node -e "
+const db = require('better-sqlite3')('/app/data/chat.db');
+const info = db.prepare('DELETE FROM messages').run();
+console.log('mensajes eliminados:', info.changes);
+"
